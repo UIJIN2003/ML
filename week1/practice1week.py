@@ -215,18 +215,26 @@ def confusion_matrix(y_hat, y_data):
     return confusion_matrix                                                     #confusion_matrix 반환
 
 
-L = 16
+L = 5
 epoch = 1000
-LR = 0.01
+LR = 0.005
 
 
 
-data = pd.read_csv('C:\\Users\\USER\\Downloads\\NN_data.csv')               #data 불러오기
+data = pd.read_csv('E:\\DML\\week1\\NN_data.csv')               #data 불러오기
 data = data.to_numpy(dtype = 'float32')
 
-np.random.shuffle(data)
 
-X, Y = make_input_output(data)
+
+tr_r = 7
+val_r = 0
+te_r = 3
+ 
+tr_data, val_data, te_data = data_division(data, tr_r, val_r, te_r)
+
+np.random.shuffle(tr_data)
+
+X, Y = make_input_output(tr_data)
 
 # y_data = One_Hot_Encoding(Y)
 Q = y_class(Y)                # 예: Q=3이면
@@ -247,26 +255,49 @@ w = np.random.rand(Q, L + 1) * 2 - 1
 v_list = []
 w_list = []
 
-v_list.append(v)
-for j in range(Y.shape[1]):
-    y_hat, b_matrix = forward_propagation_1(x_input[:, j], v, w, L)    #forward propagation 진행
-
-'''back propagation'''
-L0 = np.dot(b_matrix.T, (2 * (y_hat - y_vector[0]) * (y_hat * (1 - y_hat))))                    #weight w에 대한 미분
-
-L1 = 
-
-k = 2 * (y_hat - y_vector[:, 0].T) * (y_hat * (1 - y_hat))
+MSE_list = []
+ACCURACY_list = []
 
 
+for j in range(epoch):
+    
+    y_hat_all = []
+    
+    for i in range(Y.shape[1]):
+        v_list.append(v)
+        w_list.append(w)
+        
+        y_hat, b_matrix = forward_propagation_1(x_input[:, i], v, w, L)    #forward propagation 진행
+        y_hat_all.append(y_hat)
+        
+        #back propagation_1
+        grad_sf = 2 * (y_hat - y_vector[:, i].reshape(-1, 1)) * (y_hat * (1 - y_hat))
+        grad_W = np.dot(grad_sf, b_matrix.T)                    #weight w에 대한 미분
+        
+        # b_matrix = np.delete(b_matrix, -1)
+        # b_matrix = b_matrix.reshape(-1, 1)
+        
+        grad_B = np.dot(w.T, grad_sf) * b_matrix * (1 - b_matrix)
+        
+        grad_B = np.delete(grad_B, -1)
+        grad_B= grad_B.reshape(-1, 1)
+        
+        grad_V = np.dot(grad_B, x_input[:, i].reshape(1, -1))
+        
+        v = v - LR * grad_V
+        w = w - LR * grad_W
+        # k = 2 * (y_hat - y_vector[:, 0].reshape(-1, 1)) * (y_hat * (1 - y_hat))
+    y_hat_all_epoch = np.hstack(y_hat_all)
 
-
-
-
-
-
-
-
+    error = y_hat_all - y_vector                                              #error 계산
+    MSE = np.mean(error ** 2)                                               #MSE 계산
+    MSE_list.append(MSE)                                                    #MSE list에 저장
+    
+    
+    y_hat_classific = classification_data_max(y_hat_all_epoch)
+    # P = classification_data_max(y_hat_all)                                  #데이터 당 최댓값을 1로 만들어주는 분류 함
+    accuracy = data_accuracy(y_hat_classific, y_vector)
+    ACCURACY_list.append(accuracy)
 
 
 
