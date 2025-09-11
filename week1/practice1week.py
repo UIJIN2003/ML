@@ -57,7 +57,7 @@ def One_Hot_Encoding(y):
     Q = y_class(y)                # 예: Q=3이면
     y_vector = np.zeros((Q, y.shape[1]))
     for i in range(y.shape[1]):
-        label = int(y[0, i])      # y는 정수로 가정
+        label = int(y[0, i]) - 1      # y는 정수로 가정
         y_vector[label, i] = 1
    
     return y_vector
@@ -182,6 +182,67 @@ def Two_Layer_Neural_Network_1(x_input, y_data, L, epoch, LR):
        
     return MSE_list, ACCURACY_list, v, w                                        #MSE_list, ACCURACY_list, v, w 반환함
 
+'''Legacy 이용한 Two_Layer_Neural_Network'''
+def Two_Layer_Neural_Network_Legacy(X, Y, L, epoch, LR): 
+    
+    Q = y_class(Y)                                                              # 예: Q=3이면
+    y_vector = One_Hot_Encoding(Y)
+    x_input = add_dummy(X)                                                       #입력에 dummy data 추가
+    
+    M = ch_count(X)                                                             #input 속성 수 체크
+    Q = y_class(Y)                                                               #ouput class 수 체크
+    
+    # weight 초기화
+    v = np.random.rand(L, M + 1) * 2 - 1
+    w = np.random.rand(Q, L + 1) * 2 - 1
+    
+    v_list = []
+    w_list = []
+    
+    MSE_list = []
+    ACCURACY_list = []
+    
+    for j in range(epoch):
+        
+        y_hat_all = []
+        
+        for i in range(Y.shape[1]):
+            
+            # parameter 저장
+            v_list.append(v)
+            w_list.append(w)
+            
+            #forward propagation 진행
+            y_hat, b_matrix = forward_propagation_1(x_input[:, i], v, w, L)    
+            y_hat_all.append(y_hat)
+            
+            #back propagation
+            grad_sf = 2 * (y_hat - y_vector[:, i].reshape(-1, 1)) * (y_hat * (1 - y_hat))   
+            grad_W = np.dot(grad_sf, b_matrix.T)                                #weight w에 대한 미분
+            
+            grad_B = np.dot(w.T, grad_sf) * b_matrix * (1 - b_matrix)           #b에대한 미분
+            
+            grad_B = np.delete(grad_B, -1)
+            grad_B= grad_B.reshape(-1, 1)
+            
+            grad_V = np.dot(grad_B, x_input[:, i].reshape(1, -1))               #weight v에 대한 미분
+            
+            #weight update
+            v = v - LR * grad_V
+            w = w - LR * grad_W
+            
+        y_hat_all_epoch = np.hstack(y_hat_all)
+    
+        error = y_hat_all - y_vector                                            #error 계산
+        MSE = np.mean(error ** 2)                                               #MSE 계산
+        MSE_list.append(MSE)                                                    #MSE list에 저장
+        
+        y_hat_classific = classification_data_max(y_hat_all_epoch)              #데이터 당 최댓값을 1로 만들어주는 분류 함
+        accuracy = data_accuracy(y_hat_classific, y_vector)
+        ACCURACY_list.append(accuracy)
+        
+    return v_list, w_list, ACCURACY_list, MSE_list
+
 '''confusion matrix 구현 함수'''
 def confusion_matrix(y_hat, y_data):
    
@@ -214,10 +275,25 @@ def confusion_matrix(y_hat, y_data):
    
     return confusion_matrix                                                     #confusion_matrix 반환
 
+'''Hidden Layer 2개 fp'''
+def forward_propagation_H2(X_added_dummy, V, W, U):
+    
+    alpha = np.dot(V, X_added_dummy)
+    b_matrix = sigmoid_function(alpha).reshape(-1, 1)
+    b_matrix_added_dummy = add_dummy(b_matrix)
+    
+    beta = np.dot(W, b_matrix_added_dummy)
+    
+    c_matrix = sigmoid_function(beta)
+    c_matrix_added_dummy = add_dummy(c_matrix)
+    
+    gamma = np.dot(U, c_matrix_added_dummy)
+    y_hat = sigmoid_function(gamma)
+    return y_hat, b_matrix_added_dummy, c_matrix_added_dummy
 
 L = 5
 epoch = 1000
-LR = 0.005
+LR = 0.05
 
 
 
@@ -236,90 +312,111 @@ np.random.shuffle(tr_data)
 
 X, Y = make_input_output(tr_data)
 
-# y_data = One_Hot_Encoding(Y)
-Q = y_class(Y)                # 예: Q=3이면
-y_vector = np.zeros((Q, Y.shape[1]))
-for i in range(Y.shape[1]):
-    label = int(Y[0, i]) - 1      # y는 정수로 가정
-    y_vector[label, i] = 1
-  
-x_input = add_dummy(X)                                               #입력에 dummy data 추가
-
-M = ch_count(X)                                                       #input 속성 수 체크
-Q = y_class(Y)                                                        #ouput class 수 체크
-
-# weight 초기화
-v = np.random.rand(L, M + 1) * 2 - 1
-w = np.random.rand(Q, L + 1) * 2 - 1
-
-v_list = []
-w_list = []
-
-MSE_list = []
-ACCURACY_list = []
+# v, w, accuracy, mse = Two_Layer_Neural_Network_Legacy(X, Y, L, epoch, LR)
 
 
-for j in range(epoch):
+
+# M = ch_count(X)                                                       #input 속성 수 체크
+# Q = y_class(Y)
+
+
+
+
+# X_added_dummy = add_dummy(X)
+
+# =============================================================================
+# for i in range(X.shape[1]):
+#     y_hat , B_a, C_a, B, C = forward_propagation_H2(X_added_dummy[:, i], V, W, U)
+# 
+#     grad_sf = 2 * (y_hat - Y[:, i]) * y_hat * (1 - y_hat)
+#     
+#     grad_U = np.dot(grad_sf, C_a.T)
+#     grad_C = np.dot(U.T, grad_sf) * C_a * (1 - C_a)
+#     
+#     grad_C = np.delete(grad_C, -1)
+#     grad_C = grad_C.reshape(-1, 1)
+#     
+#     grad_w = np.dot(grad_C, B_a.T)
+#     
+#     grad_b = np.dot(W.T, grad_C) * B_a *(1 - B_a)
+#     
+#     grad_b = np.delete(grad_b, -1)
+#     grad_b = grad_C.reshape(-1, 1)
+#     
+#     grad_V = np.dot(grad_b, X_added_dummy[:, i].reshape(1, -1))
+# =============================================================================
+
+def Two_Layer_Neural_Network_H2(X, Y, L, epoch, LR): 
     
-    y_hat_all = []
+    Q = y_class(Y)                                                              # 예: Q=3이면
+    y_vector = One_Hot_Encoding(Y)
+    X_added_dummy = add_dummy(X)                                                       #입력에 dummy data 추가
     
-    for i in range(Y.shape[1]):
-        v_list.append(v)
-        w_list.append(w)
-        
-        y_hat, b_matrix = forward_propagation_1(x_input[:, i], v, w, L)    #forward propagation 진행
-        y_hat_all.append(y_hat)
-        
-        #back propagation_1
-        grad_sf = 2 * (y_hat - y_vector[:, i].reshape(-1, 1)) * (y_hat * (1 - y_hat))
-        grad_W = np.dot(grad_sf, b_matrix.T)                    #weight w에 대한 미분
-        
-        # b_matrix = np.delete(b_matrix, -1)
-        # b_matrix = b_matrix.reshape(-1, 1)
-        
-        grad_B = np.dot(w.T, grad_sf) * b_matrix * (1 - b_matrix)
-        
-        grad_B = np.delete(grad_B, -1)
-        grad_B= grad_B.reshape(-1, 1)
-        
-        grad_V = np.dot(grad_B, x_input[:, i].reshape(1, -1))
-        
-        v = v - LR * grad_V
-        w = w - LR * grad_W
-        # k = 2 * (y_hat - y_vector[:, 0].reshape(-1, 1)) * (y_hat * (1 - y_hat))
-    y_hat_all_epoch = np.hstack(y_hat_all)
-
-    error = y_hat_all - y_vector                                              #error 계산
-    MSE = np.mean(error ** 2)                                               #MSE 계산
-    MSE_list.append(MSE)                                                    #MSE list에 저장
+    M = ch_count(X)                                                             #input 속성 수 체크
+    Q = y_class(Y)                                                               #ouput class 수 체크
     
+    #parameter 생성
+    V = np.random.rand(L, M + 1) * 2 - 1
+    W = np.random.rand(L, L + 1) * 2 - 1
+    U = np.random.rand(Q, L + 1) * 2 - 1
     
-    y_hat_classific = classification_data_max(y_hat_all_epoch)
-    # P = classification_data_max(y_hat_all)                                  #데이터 당 최댓값을 1로 만들어주는 분류 함
-    accuracy = data_accuracy(y_hat_classific, y_vector)
-    ACCURACY_list.append(accuracy)
+    V_list = []
+    W_list = []
+    U_list = []
+    
+    MSE_list = []
+    ACCURACY_list = []
+    
+    for j in range(epoch):
+        
+        y_hat_all = []
+        
+        for i in range(Y.shape[1]):
+            
+            # parameter 저장
+            V_list.append(V)
+            W_list.append(W)
+            U_list.append(U)
+            
+            #forward propagation 진행
+            y_hat , B_a, C_a = forward_propagation_H2(X_added_dummy[:, i], V, W, U)    
+            y_hat_all.append(y_hat)
+            
+            #back propagation
+            grad_sf = 2 * (y_hat - Y[:, i]) * y_hat * (1 - y_hat)
+            
+            grad_U = np.dot(grad_sf, C_a.T)
+            grad_C = np.dot(U.T, grad_sf) * C_a * (1 - C_a)
+            
+            grad_C = np.delete(grad_C, -1)
+            grad_C = grad_C.reshape(-1, 1)
+            
+            grad_W= np.dot(grad_C, B_a.T)
+            
+            grad_b = np.dot(W.T, grad_C) * B_a *(1 - B_a)
+            
+            grad_b = np.delete(grad_b, -1)
+            grad_b = grad_b.reshape(-1, 1)
+            
+            grad_V = np.dot(grad_b, X_added_dummy[:, i].reshape(1, -1))               #weight v에 대한 미분
+            
+            #weight update
+            V = V - LR * grad_V
+            W = W - LR * grad_W
+            U = U - LR * grad_U
+            
+        y_hat_all_epoch = np.hstack(y_hat_all)
+    
+        error = y_hat_all - y_vector                                            #error 계산
+        MSE = np.mean(error ** 2)                                               #MSE 계산
+        MSE_list.append(MSE)                                                    #MSE list에 저장
+        
+        y_hat_classific = classification_data_max(y_hat_all_epoch)              #데이터 당 최댓값을 1로 만들어주는 분류 함
+        accuracy = data_accuracy(y_hat_classific, y_vector)
+        ACCURACY_list.append(accuracy)
+        
+    return V_list, W_list, U_list, V, W, U, ACCURACY_list, MSE_list
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+v_list, w_list, u_list, v, w, u, accuracy, mse = Two_Layer_Neural_Network_H2(X, Y, L, epoch, LR)
 
 
