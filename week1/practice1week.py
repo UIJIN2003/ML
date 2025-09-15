@@ -208,7 +208,7 @@ def Two_Layer_Neural_Network_Legacy(X, Y, L, epoch, LR):
         accuracy = data_accuracy(y_hat_classific, y_vector)
         ACCURACY_list.append(accuracy)
 
-    return v_list, w_list, ACCURACY_list, MSE_list
+    return v_list, w_list, y_hat_classific, ACCURACY_list, MSE_list
 
 
 '''Hidden Layer 2개 FP'''
@@ -296,11 +296,11 @@ def Two_Layer_Neural_Network_H2(X, Y, L, epoch, LR):
         MSE = np.mean(error ** 2)  # MSE 계산
         MSE_list.append(MSE)  # MSE list에 저장
     
-        y_hat_classific = classification_division_half(y_hat_all_epoch)  # 데이터 당 최댓값을 1로 만들어주는 분류 함
+        y_hat_classific = classification_division_half(y_hat_all_epoch)  # 데이터 당 0.5 기준으로 0, 1 분류
         accuracy = data_accuracy(y_hat_classific, y_vector)
         ACCURACY_list.append(accuracy)
 
-    return V_list, W_list, U_list, ACCURACY_list, MSE_list
+    return V_list, W_list, U_list, y_hat_classific, ACCURACY_list, MSE_list
 
 
 '''confusion matrix 구현 함수'''
@@ -337,7 +337,38 @@ def confusion_matrix(y_hat, y_data):
 
     return confusion_matrix  # confusion_matrix 반환
 
-
+'''3D graph 함수'''
+def graph_3D(X, Y):
+    #gemini가 만들어준 3d graph 코드
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    
+    # 1. Y 값에 따른 색상을 미리 정의 (딕셔너리 또는 리스트)
+    color_map = {1: 'b', 2: 'g', 3: 'r', 4: 'c', 5: 'm',6: 'y'}
+    
+    # 2. Y 배열의 각 값에 해당하는 색상으로 구성된 리스트를 한 번에 생성
+    #    .get(key, default)를 사용하면 else 조건까지 깔끔하게 처리 가능
+    colors = [color_map.get(label, 'y') for label in Y[0, :]]
+    
+    # 3. scatter 함수를 단 한 번만 호출하여 모든 점을 한 번에 그리기
+    ax.scatter(X[0, :], X[1, :], X[2, :], c=colors)
+    ax.set_xlabel("x0")
+    ax.set_ylabel("x1")
+    ax.set_zlabel("x2")
+    legend_handles = []
+    for label, color in color_map.items():
+        # 실제 데이터 없이, 색상과 라벨만 가진 Line2D 객체를 생성합니다.
+        # marker='o'는 scatter plot과 같은 원형 마커를 의미합니다.
+        # linestyle='None'은 선을 그리지 않도록 설정합니다.
+        handle = plt.Line2D([0], [0], marker='o', color='w',
+                            markerfacecolor=color, markersize=10,
+                            label=f'Y = {label}')
+        legend_handles.append(handle)
+    
+    # 5. 생성된 핸들을 사용하여 범례 표시
+    ax.legend(handles=legend_handles, title="Classes")
+    plt.show()
+    return 
 
 
 # Hyper parameters 설정
@@ -363,10 +394,17 @@ np.random.shuffle(tr_data)
 X, Y = make_input_output(tr_data)
 
 # Hidden layer 1 NN
-v, w, accuracy, mse = Two_Layer_Neural_Network_Legacy(X, Y, L, epoch, LR)
+v, w, y_hat_h1, accuracy, mse = Two_Layer_Neural_Network_Legacy(X, Y, L, epoch, LR)
 
 # Hidden Layer 2 NN
-v_list, w_list, u_list, ACCURACY, MSE = Two_Layer_Neural_Network_H2(X, Y, L, epoch, LR)
+v_list, w_list, u_list, y_hat_h2, ACCURACY, MSE = Two_Layer_Neural_Network_H2(X, Y, L, epoch, LR)
+
+#one hot decoding 풀기
+y_hat_d_h1 = np.argmax(y_hat_h1, axis=0) + 1
+y_hat_d_h1 = y_hat_d_h1.reshape(1, -1)
+y_hat_d_h2 = np.argmax(y_hat_h2, axis=0) + 1
+y_hat_d_h2 = y_hat_d_h2.reshape(1, -1)
+
 
 #그래프로 나타내기
 plt.figure(figsize=(12,5))
@@ -394,7 +432,7 @@ plt.grid(True, linestyle="--", alpha=0.6)
 ''' hidden layer 2 '''
 plt.figure(figsize=(12,5))
 # MSE
-plt.subplot(2,2,1)
+plt.subplot(1,2,1)
 plt.plot(MSE, label="MSE", color='red')
 plt.xlabel("Epoch")
 plt.ylabel("MSE")
@@ -403,7 +441,7 @@ plt.legend()
 plt.grid(True, linestyle="--", alpha=0.6)
 
 # Accuracy
-plt.subplot(2,2,2)
+plt.subplot(1,2,2)
 plt.plot(ACCURACY, label="Accuracy", color='blue')
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
@@ -413,22 +451,13 @@ plt.grid(True, linestyle="--", alpha=0.6)
 plt.tight_layout()
 plt.show()
 
-      
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+graph_3D(X, Y)
+graph_3D(X, y_hat_d_h1)
+graph_3D(X, y_hat_d_h2)
 
-# 1. Y 값에 따른 색상을 미리 정의 (딕셔너리 또는 리스트)
-color_map = {1: 'b', 2: 'g', 3: 'r', 4: 'c', 5: 'm'}
-
-# 2. Y 배열의 각 값에 해당하는 색상으로 구성된 리스트를 한 번에 생성
-#    .get(key, default)를 사용하면 else 조건까지 깔끔하게 처리 가능
-colors = [color_map.get(label, 'y') for label in Y[0, :]]
-
-# 3. scatter 함수를 단 한 번만 호출하여 모든 점을 한 번에 그리기
-ax.scatter(X[0, :], X[1, :], X[2, :], c=colors)
-ax.set_xlabel("x0")
-ax.set_ylabel("x1")
-ax.set_zlabel("y0")
-plt.show()
         
+
+
+
+
 
